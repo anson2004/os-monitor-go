@@ -1,0 +1,17 @@
+services:
+  osmonitor:
+    build: .
+    image: osmonitor:latest
+    container_name: osmonitor
+    ports:
+      - "8080:8080"
+    environment:
+      OSMONITOR_INTERVAL: 5s
+    # Mount the host's procfs/sysfs read-only so the container reports the
+    # host's CPU, memory, load and sensors instead of its own cgroup view.
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc:/host/etc:ro
+    pid: host
+    restart: unless-stopped
