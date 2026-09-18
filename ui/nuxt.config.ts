@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   ],
 
   // Static single-page app: `nuxt generate` emits plain HTML/JS/CSS into
-  // .output/public, served by nginx in production (see Dockerfile).
+  // .output/public, which the Go binary embeds and serves (internal/web).
   ssr: false,
 
   devtools: {
@@ -20,7 +20,7 @@ export default defineNuxtConfig({
 
   nitro: {
     // Dev-only: forward /api/* to the Go API so the browser stays same-origin.
-    // In production nginx does this (see nginx/default.conf.template).
+    // In production the Go server hosts both, so no proxy is involved.
     // The proxy strips the matched prefix, so the target must include /api.
     devProxy: {
       '/api': {

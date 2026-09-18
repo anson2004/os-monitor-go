@@ -1,6 +1,6 @@
 # OSMonitor
 
-A small Go service that collects operating-system metrics and serves them as JSON over HTTP, plus a Nuxt UI dashboard in [ui/](ui/) that charts them live.
+A small Go service that collects operating-system metrics and serves them as JSON over HTTP. A Nuxt UI dashboard in [ui/](ui/) charts them live and is embedded into the same binary, so one container serves both.
 
 Collected:
 
@@ -18,9 +18,10 @@ Metrics come from [gopsutil](https://github.com/shirou/gopsutil), so the same bi
 cmd/osmonitor/main.go         entrypoint: config from env, graceful shutdown
 internal/collector/           one file per metric group, combined into a Snapshot
 internal/server/server.go     background refresh loop + HTTP handlers
-ui/                           Nuxt 4 + Nuxt UI 4 + Nuxt Charts dashboard
-Dockerfile                    Go API image: multi-stage, static binary, non-root
-docker-compose.yml            API + dashboard, host /proc and /sys mounted read-only
+internal/web/                 embeds the built dashboard (dist/) and serves it as a SPA
+ui/                           Nuxt 4 + Nuxt UI 4 + Nuxt Charts dashboard source
+Dockerfile                    node build -> go build (embeds UI) -> alpine runtime
+docker-compose.yml            single service, host /proc and /sys mounted read-only
 ```
 
 ## Run locally
@@ -49,6 +50,7 @@ CGO_ENABLED=0 go run ./cmd/osmonitor
 | `GET /health`           | Liveness check                                       |
 | `GET /api/metrics`      | Latest cached snapshot (refreshed every interval)    |
 | `GET /api/metrics/live` | Collects a fresh snapshot on request (slower)        |
+| `GET /*`                | Embedded dashboard (single-page app)                 |
 
 ## Configuration
 
@@ -60,15 +62,27 @@ CGO_ENABLED=0 go run ./cmd/osmonitor
 
 ## Dashboard (ui/)
 
-The `ui` folder is a Nuxt 4 app using [Nuxt UI](https://ui.nuxt.com) components and [Nuxt Charts](https://nuxtcharts.com). It polls the Go API every 3 seconds and shows CPU, memory and swap trends, per-core load, temperature sensors, disk usage and host details.
+The `ui` folder is a Nuxt 4 app using [Nuxt UI](https://ui.nuxt.com) components and [Nuxt Charts](https://nuxtcharts.com). It polls the API every 3 seconds and shows CPU, memory and swap trends, per-core load, temperature sensors, disk usage and host details.
+
+**Production**: the static build is embedded into the Go binary and served at `/`. Build it once, then build Go:
 
 ```sh
 make ui-install     # npm install (first time)
+make ui-build       # nuxt generate -> internal/web/dist/
+make build          # binary with the dashboard inside
+./bin/osmonitor     # open http://localhost:8080
+```
+
+Without `make ui-build`, the binary still runs and serves a small "dashboard not built" page at `/`; the API is unaffected.
+
+**Development**: run the Go API and the Nuxt dev server side by side. The dev server proxies `/api/*` to Go so the browser stays same-origin, and no CORS setup is needed anywhere.
+
+```sh
 make run            # Go API on :8080, in one terminal
 make ui-dev         # Nuxt dev server on :3000, in another
 ```
 
-The browser only ever calls its own origin. In development the Nuxt dev server proxies `/api/*` to the Go API; in production nginx does the same. Either way Go needs no CORS setup. Point the dev proxy elsewhere with `NUXT_API_URL`. If port 3000 is busy, run `npx nuxt dev --port 3210` inside `ui/`.
+Point the dev proxy elsewhere with `NUXT_API_URL`. If port 3000 is busy, run `npx nuxt dev --port 3210` inside `ui/`.
 
 See [ui/README.md](ui/README.md) for the frontend layout.
 
@@ -76,12 +90,12 @@ See [ui/README.md](ui/README.md) for the frontend layout.
 
 ```sh
 make docker-up      # docker compose up --build -d
-open http://localhost:3000       # dashboard
+open http://localhost:8080       # dashboard
 curl localhost:8080/api/metrics  # raw JSON
 make docker-down
 ```
 
-Compose starts two containers: `osmonitor` (Go API, ~22 MB) and `ui` (static dashboard served by nginx, proxying `/api/*` to the API over the compose network). The UI upstream is set with `API_URL`. It mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the API reports the host machine's metrics instead of its own cgroup view.
+The image is built in three stages: Node generates the dashboard, Go embeds it and compiles a static binary, and the result is copied into Alpine. One container serves both the API and the UI on port 8080. Compose mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the API reports the host machine's metrics instead of its own cgroup view.
 
 ### Temperature caveats
 

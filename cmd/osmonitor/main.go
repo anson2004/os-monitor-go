@@ -13,6 +13,7 @@ import (
 
 	"osmonitor/internal/collector"
 	"osmonitor/internal/server"
+	"osmonitor/internal/web"
 )
 
 func main() {
@@ -27,9 +28,16 @@ func main() {
 	srv := server.New(collector.New(), interval, log)
 	go srv.Run(ctx)
 
+	// API routes and the embedded dashboard share one port. Anything that is
+	// not /health or /api/* is handed to the single-page app.
+	root := http.NewServeMux()
+	root.Handle("/health", srv.Handler())
+	root.Handle("/api/", srv.Handler())
+	root.Handle("/", web.Handler())
+
 	httpSrv := &http.Server{
 		Addr:              addr,
-		Handler:           srv.Handler(),
+		Handler:           root,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

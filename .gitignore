@@ -2,3 +2,7 @@ bin/
 *.test
 *.out
 .DS_Store
+
+# Built dashboard embedded into the Go binary (make ui-build). Keep the placeholder.
+internal/web/dist/*
+!internal/web/dist/.gitkeep

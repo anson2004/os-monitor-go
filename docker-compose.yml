@@ -4,7 +4,7 @@ services:
     image: osmonitor:latest
     container_name: osmonitor
     ports:
-      - "8080:8080"
+      - "8080:8080"   # dashboard and API on the same port
     environment:
       OSMONITOR_INTERVAL: 5s
     # Mount the host's procfs/sysfs read-only so the container reports the
@@ -14,16 +14,4 @@ services:
       - /sys:/host/sys:ro
       - /etc:/host/etc:ro
     pid: host
-    restart: unless-stopped
-
-  ui:
-    build: ./ui
-    image: osmonitor-ui:latest
-    container_name: osmonitor-ui
-    ports:
-      - "3000:80"
-    environment:
-      API_URL: http://osmonitor:8080
-    depends_on:
-      - osmonitor
     restart: unless-stopped

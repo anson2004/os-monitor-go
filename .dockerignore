@@ -3,3 +3,12 @@ bin/
 *.md
 docker-compose.yml
 Makefile
+# UI: only sources are needed; the image builds its own output.
+ui/node_modules
+ui/.output
+ui/.nuxt
+ui/.data
+ui/.cache
+# Local embed output is replaced by the build stage.
+internal/web/dist/*
+!internal/web/dist/.gitkeep
