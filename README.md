@@ -95,7 +95,19 @@ curl localhost:8080/api/metrics  # raw JSON
 make docker-down
 ```
 
-The image is built in three stages: Node generates the dashboard, Go embeds it and compiles a static binary, and the result is copied into Alpine. One container serves both the API and the UI on port 8080. Compose mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the API reports the host machine's metrics instead of its own cgroup view.
+The image is built in three stages: Node generates the dashboard, Go embeds it and compiles a static binary, and the result is copied into Alpine. One container serves both the API and the UI on port 8080.
+
+### Multi-architecture images
+
+The Node and Go stages run on the build machine's architecture and Go cross-compiles for the target, so building for both `amd64` and `arm64` costs one UI build plus two quick Go compiles, not two emulated builds.
+
+```sh
+make docker-buildx                                   # amd64 + arm64, loaded locally
+make docker-push IMAGE=ghcr.io/you/osmonitor:1.0.0   # amd64 + arm64, pushed to a registry
+make docker-buildx PLATFORMS=linux/arm64             # a single architecture
+```
+
+`docker-buildx` with `--load` needs Docker's containerd image store (on by default in Docker Desktop). Without it, use `docker-push` or build one platform at a time. Compose mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the API reports the host machine's metrics instead of its own cgroup view.
 
 ### Temperature caveats
 

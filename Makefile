@@ -1,5 +1,7 @@
-BINARY := osmonitor
-IMAGE  := osmonitor:latest
+BINARY    := osmonitor
+IMAGE     := osmonitor:latest
+# Architectures for the multi-arch targets. Override: make docker-buildx PLATFORMS=linux/arm64
+PLATFORMS := linux/amd64,linux/arm64
 
 # Pure-Go build. Avoids needing a C toolchain (and the Xcode license on macOS).
 export CGO_ENABLED := 0
@@ -10,7 +12,7 @@ PKGS := ./cmd/... ./internal/... ./test/...
 # Where the compiled dashboard is embedded from (see internal/web/web.go).
 DIST := internal/web/dist
 
-.PHONY: run build test tidy ui-install ui-dev ui-build ui-clean docker-build docker-run docker-up docker-down
+.PHONY: run build test tidy ui-install ui-dev ui-build ui-clean docker-build docker-buildx docker-push docker-run docker-up docker-down
 
 run:
 	go run ./cmd/osmonitor
@@ -43,6 +45,16 @@ ui-clean:
 
 docker-build:
 	docker build -t $(IMAGE) .
+
+# Multi-arch image loaded into the local daemon (needs the containerd image
+# store, which Docker Desktop enables by default).
+docker-buildx:
+	docker buildx build --platform $(PLATFORMS) -t $(IMAGE) --load .
+
+# Multi-arch image pushed to a registry, e.g.
+#   make docker-push IMAGE=ghcr.io/you/osmonitor:1.0.0
+docker-push:
+	docker buildx build --platform $(PLATFORMS) -t $(IMAGE) --push .
 
 docker-run: docker-build
 	docker run --rm -p 8080:8080 --pid=host \
