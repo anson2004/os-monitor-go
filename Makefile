@@ -4,7 +4,7 @@ IMAGE  := osmonitor:latest
 # Pure-Go build. Avoids needing a C toolchain (and the Xcode license on macOS).
 export CGO_ENABLED := 0
 
-.PHONY: run build test tidy docker-build docker-run docker-up docker-down
+.PHONY: run build test tidy ui-install ui-dev ui-build docker-build docker-run docker-up docker-down
 
 run:
 	go run ./cmd/osmonitor
@@ -17,6 +17,15 @@ test:
 
 tidy:
 	go mod tidy
+
+ui-install:
+	cd ui && npm install
+
+ui-dev:
+	cd ui && npm run dev
+
+ui-build:
+	cd ui && npm run build
 
 docker-build:
 	docker build -t $(IMAGE) .

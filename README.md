@@ -1,6 +1,6 @@
 # OSMonitor
 
-A small Go service that collects operating-system metrics and serves them as JSON over HTTP.
+A small Go service that collects operating-system metrics and serves them as JSON over HTTP, plus a Nuxt UI dashboard in [ui/](ui/) that charts them live.
 
 Collected:
 
@@ -18,8 +18,9 @@ Metrics come from [gopsutil](https://github.com/shirou/gopsutil), so the same bi
 cmd/osmonitor/main.go         entrypoint: config from env, graceful shutdown
 internal/collector/           one file per metric group, combined into a Snapshot
 internal/server/server.go     background refresh loop + HTTP handlers
-Dockerfile                    multi-stage build, static binary, non-root user
-docker-compose.yml            runs with host /proc and /sys mounted read-only
+ui/                           Nuxt 4 + Nuxt UI 4 + Nuxt Charts dashboard
+Dockerfile                    Go API image: multi-stage, static binary, non-root
+docker-compose.yml            API + dashboard, host /proc and /sys mounted read-only
 ```
 
 ## Run locally
@@ -29,13 +30,13 @@ make run            # or: go run ./cmd/osmonitor
 curl localhost:8080/api/metrics
 ```
 
-On macOS you may see "You have not agreed to the Xcode and Apple SDKs license". Both `/usr/bin/make` and the cgo C compiler are Xcode shims that refuse to run until the license is accepted. Either accept it once:
+On macOS you may see "You have not agreed to the Xcode and Apple SDKs license". Both `/usr/bin/make` and the cgo C compiler are Xcode shims that refuse to run while `xcode-select` points at Xcode.app. Point it at the Command Line Tools instead:
 
 ```sh
-sudo xcodebuild -license accept
+sudo xcode-select --switch /Library/Developer/CommandLineTools
 ```
 
-or skip `make` and run Go directly (the Makefile already disables cgo, so after accepting the license `make run` works too):
+Or skip `make` and run Go directly. The Makefile already disables cgo, so once the selector is switched `make run` works too:
 
 ```sh
 CGO_ENABLED=0 go run ./cmd/osmonitor
@@ -43,29 +44,44 @@ CGO_ENABLED=0 go run ./cmd/osmonitor
 
 ## Endpoints
 
-| Path                 | Description                                              |
-|----------------------|----------------------------------------------------------|
-| `GET /health`        | Liveness check                                           |
-| `GET /api/metrics`   | Latest cached snapshot (refreshed every interval)        |
-| `GET /api/metrics/live` | Collects a fresh snapshot on request (slower)         |
+| Path                    | Description                                          |
+|-------------------------|------------------------------------------------------|
+| `GET /health`           | Liveness check                                       |
+| `GET /api/metrics`      | Latest cached snapshot (refreshed every interval)    |
+| `GET /api/metrics/live` | Collects a fresh snapshot on request (slower)        |
 
 ## Configuration
 
-| Variable              | Default | Description                       |
-|-----------------------|---------|-----------------------------------|
-| `OSMONITOR_ADDR`      | `:8080` | Listen address                    |
-| `OSMONITOR_INTERVAL`  | `5s`    | Background refresh interval       |
-| `HOST_PROC`, `HOST_SYS`, `HOST_ETC` | unset | Alternate procfs/sysfs paths (set in the Docker image) |
+| Variable                            | Default | Description                                            |
+|-------------------------------------|---------|--------------------------------------------------------|
+| `OSMONITOR_ADDR`                    | `:8080` | Listen address                                         |
+| `OSMONITOR_INTERVAL`                | `5s`    | Background refresh interval                            |
+| `HOST_PROC`, `HOST_SYS`, `HOST_ETC` | unset   | Alternate procfs/sysfs paths (set in the Docker image) |
+
+## Dashboard (ui/)
+
+The `ui` folder is a Nuxt 4 app using [Nuxt UI](https://ui.nuxt.com) components and [Nuxt Charts](https://nuxtcharts.com). It polls the Go API every 3 seconds and shows CPU, memory and swap trends, per-core load, temperature sensors, disk usage and host details.
+
+```sh
+make ui-install     # npm install (first time)
+make run            # Go API on :8080, in one terminal
+make ui-dev         # Nuxt dev server on :3000, in another
+```
+
+The browser only talks to the Nuxt server. A Nitro route at `ui/server/api/[...path].ts` forwards `/api/*` to the Go API, so no CORS setup is needed. Point it elsewhere with `NUXT_API_URL`. If port 3000 is busy, run `npx nuxt dev --port 3210` inside `ui/`.
+
+See [ui/README.md](ui/README.md) for the frontend layout.
 
 ## Docker
 
 ```sh
 make docker-up      # docker compose up --build -d
-curl localhost:8080/api/metrics
+open http://localhost:3000       # dashboard
+curl localhost:8080/api/metrics  # raw JSON
 make docker-down
 ```
 
-The compose file mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the container reports the host machine's metrics instead of its own cgroup view.
+Compose starts two containers: `osmonitor` (Go API) and `ui` (dashboard, reaching the API over the compose network). It mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the API reports the host machine's metrics instead of its own cgroup view.
 
 ### Temperature caveats
 
