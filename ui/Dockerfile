@@ -6,18 +6,16 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+RUN npm run generate
 
 # ---- runtime stage ----
-FROM node:22-alpine
-WORKDIR /app
-ENV NODE_ENV=production \
-    NITRO_PORT=3000 \
-    NITRO_HOST=0.0.0.0 \
-    NUXT_API_URL=http://osmonitor:8080
+FROM nginx:1.27-alpine-slim
 
-COPY --from=build /app/.output ./.output
+# Default upstream; override with -e API_URL=... (docker-compose sets it).
+ENV API_URL=http://osmonitor:8080
 
-USER node
-EXPOSE 3000
-ENTRYPOINT ["node", ".output/server/index.mjs"]
+COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build /app/.output/public /usr/share/nginx/html
+
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost/health || exit 1

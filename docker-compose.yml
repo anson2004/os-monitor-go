@@ -21,9 +21,9 @@ services:
     image: osmonitor-ui:latest
     container_name: osmonitor-ui
     ports:
-      - "3000:3000"
+      - "3000:80"
     environment:
-      NUXT_API_URL: http://osmonitor:8080
+      API_URL: http://osmonitor:8080
     depends_on:
       - osmonitor
     restart: unless-stopped

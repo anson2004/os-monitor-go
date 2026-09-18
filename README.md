@@ -68,7 +68,7 @@ make run            # Go API on :8080, in one terminal
 make ui-dev         # Nuxt dev server on :3000, in another
 ```
 
-The browser only talks to the Nuxt server. A Nitro route at `ui/server/api/[...path].ts` forwards `/api/*` to the Go API, so no CORS setup is needed. Point it elsewhere with `NUXT_API_URL`. If port 3000 is busy, run `npx nuxt dev --port 3210` inside `ui/`.
+The browser only ever calls its own origin. In development the Nuxt dev server proxies `/api/*` to the Go API; in production nginx does the same. Either way Go needs no CORS setup. Point the dev proxy elsewhere with `NUXT_API_URL`. If port 3000 is busy, run `npx nuxt dev --port 3210` inside `ui/`.
 
 See [ui/README.md](ui/README.md) for the frontend layout.
 
@@ -81,7 +81,7 @@ curl localhost:8080/api/metrics  # raw JSON
 make docker-down
 ```
 
-Compose starts two containers: `osmonitor` (Go API) and `ui` (dashboard, reaching the API over the compose network). It mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the API reports the host machine's metrics instead of its own cgroup view.
+Compose starts two containers: `osmonitor` (Go API, ~22 MB) and `ui` (static dashboard served by nginx, proxying `/api/*` to the API over the compose network). The UI upstream is set with `API_URL`. It mounts `/proc`, `/sys` and `/etc` from the host read-only and uses `pid: host`, so the API reports the host machine's metrics instead of its own cgroup view.
 
 ### Temperature caveats
 
