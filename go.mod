@@ -1,4 +1,4 @@
-module github.com/yiqingliang/osmonitor
+module osmonitor
 
 go 1.24.1
 

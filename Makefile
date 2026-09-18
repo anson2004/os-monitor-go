@@ -12,8 +12,12 @@ run:
 build:
 	go build -trimpath -ldflags="-s -w" -o bin/$(BINARY) ./cmd/osmonitor
 
+# Scoped: ./... would descend into ui/node_modules, which contains a Go package.
+PKGS := ./cmd/... ./internal/...
+
 test:
-	go test ./...
+	go vet $(PKGS)
+	go test $(PKGS)
 
 tidy:
 	go mod tidy

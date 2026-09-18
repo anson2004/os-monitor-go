@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/yiqingliang/osmonitor/internal/collector"
-	"github.com/yiqingliang/osmonitor/internal/server"
+	"osmonitor/internal/collector"
+	"osmonitor/internal/server"
 )
 
 func main() {

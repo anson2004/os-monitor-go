@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yiqingliang/osmonitor/internal/collector"
+	"osmonitor/internal/collector"
 )
 
 // Server serves the latest Snapshot. A background loop refreshes it on a
